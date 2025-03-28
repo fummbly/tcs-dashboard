@@ -24,6 +24,13 @@ type TempInfo struct {
 	Temp float64
 }
 
+type SysInfo struct {
+	CPUPercent float64
+	Host       string
+	Processes  []ProcessInfo
+	Temps      []TempInfo
+}
+
 func (p ProcessInfo) String() string {
 
 	return fmt.Sprintf("%d: %s --- Status: %s, Number of Threads: %d", p.Pid, p.Name, p.Status, p.NumThreads)
@@ -35,15 +42,15 @@ func (t TempInfo) String() string {
 
 }
 
-func GetCPUPerc() []float64 {
+func GetCPUPerc() float64 {
 
-	percentage, err := cpu.Percent(1*time.Second, true)
+	percentage, err := cpu.Percent(1*time.Second, false)
 	if err != nil {
 		log.Fatalf("Failed to get cpu usage percentage: %v", err)
-		return []float64{}
+		return 0.0
 	}
 
-	return percentage
+	return percentage[0]
 
 }
 
@@ -110,4 +117,40 @@ func GetTemps() []TempInfo {
 	}
 
 	return ts
+}
+
+func GetSysInfo() *SysInfo {
+	info := &SysInfo{
+		CPUPercent: GetCPUPerc(),
+		Host:       GetHostInfo(),
+		Processes:  GetProcesses(),
+		Temps:      GetTemps(),
+	}
+
+	return info
+}
+
+func Run(info chan SysInfo, done chan bool, ticker *time.Ticker) {
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			info <- *GetSysInfo()
+
+		}
+
+	}
+
+	/*
+		ticker := time.NewTicker(30 * time.Second)
+
+		for _ = range ticker.C {
+
+			fmt.Println("Test")
+
+			fmt.Println(getSysInfo())
+		}
+	*/
+
 }
